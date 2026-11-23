@@ -26,6 +26,10 @@ import {
   readControllerTemplateSource,
   type ControllerTemplateSource,
 } from '../controllerTemplateSource';
+import {
+  GIT_REPOSITORY_TEMPLATE_TAG,
+  isGitRepositoriesHandoff,
+} from '../templateHandoffSource';
 import { rootRouteRef } from '../../routes';
 import { ansibleApiRef } from '../../apis';
 import type { SyncProgressEntry, SyncOutcome } from '../common';
@@ -52,6 +56,7 @@ import {
   invalidateTemplatesCatalog,
 } from './templatesCatalog';
 import { ControllerTemplateGuidance } from './ControllerTemplateGuidance';
+import { GitRepositoryTemplateGuidance } from './GitRepositoryTemplateGuidance';
 import { TemplatesPageHeaderSection } from './TemplatesPageHeaderSection';
 
 /** When the first post sync AAP list matches pre sync, a second fetch may still be stale, wait before retrying. */
@@ -96,6 +101,8 @@ type HomeCatalogPanelProps = {
   externalLoading: boolean;
   onSourceChange: (sources: string[]) => void;
   controllerSource?: ControllerTemplateSource;
+  /** Tag applied when Create handoff scopes the Templates list. */
+  requiredTag?: string;
 };
 
 /**
@@ -110,13 +117,14 @@ function HomeCatalogPanel({
   externalLoading,
   onSourceChange,
   controllerSource,
+  requiredTag,
 }: Readonly<HomeCatalogPanelProps>) {
   return (
     <TemplatesCatalogProvider
       jobTemplateIds={jobTemplateIds}
       selectedSources={selectedSources}
       listKey={listKey}
-      requiredTag={controllerSource ? CONTROLLER_TEMPLATE_TAG : undefined}
+      requiredTag={requiredTag}
     >
       <CatalogFilterLayout>
         <CatalogFilterLayout.Filters>
@@ -157,6 +165,13 @@ export const HomeComponent = () => {
   const navigate = useNavigate();
   const { search } = useLocation();
   const controllerSource = readControllerTemplateSource(search);
+  const gitReposHandoff = isGitRepositoriesHandoff(search);
+  let handoffRequiredTag: string | undefined;
+  if (controllerSource) {
+    handoffRequiredTag = CONTROLLER_TEMPLATE_TAG;
+  } else if (gitReposHandoff) {
+    handoffRequiredTag = GIT_REPOSITORY_TEMPLATE_TAG;
+  }
   const shellPageClasses = useShellPageStyles();
   const rootLink = useRouteRef(rootRouteRef);
   const ansibleApi = useApi(ansibleApiRef);
@@ -525,8 +540,12 @@ export const HomeComponent = () => {
   }, [jobTemplateIdsKey, jobTemplatesLoadState]);
 
   // JT id updates flow through createHomeCatalogApi and soft refresh.
-  const catalogListKey = JSON.stringify([selectedSources, controllerSource]);
-  const clearControllerFilters = () => {
+  const catalogListKey = JSON.stringify([
+    selectedSources,
+    controllerSource,
+    gitReposHandoff,
+  ]);
+  const clearHandoffFilters = () => {
     setSelectedSources([]);
     navigate(rootLink());
   };
@@ -542,6 +561,7 @@ export const HomeComponent = () => {
         externalLoading={loading}
         onSourceChange={setSelectedSources}
         controllerSource={controllerSource}
+        requiredTag={handoffRequiredTag}
       />
     );
   } else if (jobTemplatesLoadState === 'error') {
@@ -632,8 +652,11 @@ export const HomeComponent = () => {
         {controllerSource && (
           <ControllerTemplateGuidance
             key={controllerSource.image}
-            onClear={clearControllerFilters}
+            onClear={clearHandoffFilters}
           />
+        )}
+        {gitReposHandoff && !controllerSource && (
+          <GitRepositoryTemplateGuidance onClear={clearHandoffFilters} />
         )}
         {catalogContent}
       </Content>
