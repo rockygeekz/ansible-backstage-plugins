@@ -1,15 +1,5 @@
-import {
-  useState,
-  useCallback,
-  useEffect,
-  useRef,
-  useMemo,
-  Fragment,
-} from 'react';
-import {
-  NativeCatalogHeaderActions,
-  useNativeCatalogTabs,
-} from '@ansible/portal-extension-host/alpha';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
+import { useNativeCatalogTabs } from '@ansible/portal-extension-host/alpha';
 import { portalContributionsApiRef } from '@ansible/portal-extension-api/alpha';
 import {
   Page,
@@ -17,7 +7,7 @@ import {
   HeaderTabs,
   LinkButton,
 } from '@backstage/core-components';
-import { Box, Button, makeStyles } from '@material-ui/core';
+import { Box, makeStyles } from '@material-ui/core';
 import {
   Navigate,
   Route,
@@ -40,7 +30,6 @@ import {
 } from '@backstage/core-plugin-api';
 import {
   useExtensionTabs,
-  useExtensionActions,
   EXTENSION_POINTS,
   CONTENT_TYPES,
 } from '@ansible/portal-extension-api';
@@ -54,6 +43,7 @@ import {
   useNotifications,
 } from '../notifications';
 import { ExtensionTabContent } from '../../extensions/ExtensionRenderer';
+import { gitRepositoriesHandoffPath } from '../templateHandoffSource';
 
 import { rootRouteRef } from '../../routes';
 import { RepositoriesPageHeaderSection } from './RepositoriesPageHeaderSection';
@@ -131,11 +121,10 @@ export const GitRepositoriesPage = () => {
     CONTENT_TYPES.PLAYBOOK_REPOSITORY,
   );
 
-  // Extension actions for the list page header (e.g. "Add repository" from APME).
-  const listActions = useExtensionActions(
-    EXTENSION_POINTS.GIT_REPO_LIST_ACTIONS,
-  );
   const nativeContributions = useApiHolder().get(portalContributionsApiRef);
+  // AAP-101666: Create opens filtered Templates (L1 stock handoff), not a single wizard.
+  const createHandoffTo = gitRepositoriesHandoffPath(rootLink());
+
   const [searchParams, setSearchParams] = useSearchParams();
   const catalogContext = useMemo(
     () => ({
@@ -296,41 +285,14 @@ export const GitRepositoriesPage = () => {
           syncInProgress={isSyncInProgress}
           syncProgress={syncProgress}
           actions={
-            <>
-              <NativeCatalogHeaderActions
-                contentType={CONTENT_TYPES.PLAYBOOK_REPOSITORY}
-                templatePath={(namespace, name) =>
-                  `/self-service/create/templates/${namespace}/${name}`
-                }
-              />
-              {!nativeContributions && listActions.length > 0 ? (
-                <Fragment>
-                  {listActions.map(action =>
-                    action.to ? (
-                      <LinkButton
-                        key={action.id}
-                        variant="contained"
-                        color="primary"
-                        to={action.to}
-                        startIcon={action.icon ? <action.icon /> : undefined}
-                      >
-                        {action.label}
-                      </LinkButton>
-                    ) : (
-                      <Button
-                        key={action.id}
-                        variant="contained"
-                        color="primary"
-                        startIcon={action.icon ? <action.icon /> : undefined}
-                        disabled
-                      >
-                        {action.label}
-                      </Button>
-                    ),
-                  )}
-                </Fragment>
-              ) : undefined}
-            </>
+            <LinkButton
+              variant="contained"
+              color="primary"
+              to={createHandoffTo}
+              data-testid="git-repositories-create"
+            >
+              Create
+            </LinkButton>
           }
         />
         <Box className={classes.tabsSection}>

@@ -225,6 +225,38 @@ describe('self-service', () => {
     );
   });
 
+  it('scopes Templates for Git Repos Create handoff and clears with Clear filters', async () => {
+    const requiredTag = { 'metadata.tags': 'git-repository' };
+    mockCatalogApi.getEntityFacets.mockResolvedValue(
+      facetsFromEntityRefs([], []),
+    );
+    await render(<HomeComponent />, [
+      '/self-service/catalog?source=git-repositories',
+    ]);
+    expect(
+      await screen.findByText('Create a Git repository'),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(mockCatalogApi.queryEntities).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          query: { $all: expect.arrayContaining([requiredTag]) },
+        }),
+      ),
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+    expect(
+      screen.queryByText('Create a Git repository'),
+    ).not.toBeInTheDocument();
+    await waitFor(() =>
+      expect(mockCatalogApi.queryEntities).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          query: { $all: expect.not.arrayContaining([requiredTag]) },
+        }),
+      ),
+    );
+  });
+
   it('should render', async () => {
     const entityRefs = ['component:default/e1', 'component:default/e2'];
     const tags = ['tag1', 'tag2', 'tag3', 'tag4'];
